@@ -39,169 +39,68 @@ def save(fig, name):
     print(f"wrote {path}")
 
 
-def figure_06_value_delta():
-    """Value function is blind to second-step difficulty when first is held fixed.
-
-    From LONG_REPORT §3.3 Test C (fresh_baseline):
-        mean ΔV (easy C)  = -0.1850
-        mean ΔV (hard C)  = -0.1875
-        difference         = 0.0026
-    """
-    labels = ["Easy second\nsub-goal", "Hard second\nsub-goal"]
-    delta_v = [-0.1850, -0.1875]
-
-    fig, ax = plt.subplots(figsize=(6, 4.5))
-    bars = ax.bar(labels, delta_v, color=[GREEN, RED],
-                  edgecolor="black", linewidth=0.6, width=0.55)
-    ax.axhline(0, color="black", linewidth=0.5)
-    ax.set_ylabel(r"$\Delta V = V(s, [A, C]) - V(s, [A])$")
-    ax.set_title("Marginal value of the second sub-goal, first step held constant\n"
-                 r"$\Delta V$(easy) $-$ $\Delta V$(hard) $= 0.003$, within noise")
-
-    for b, v in zip(bars, delta_v):
-        ax.text(b.get_x() + b.get_width() / 2, v - 0.006,
-                f"{v:.4f}", ha="center", va="top", fontweight="bold", color="white")
-
-    ax.set_ylim(-0.22, 0.02)
-    fig.tight_layout()
-    save(fig, "06_value_anticipation.png")
-    plt.close(fig)
-
-
-def figure_07_planning_incentives():
-    """Training interventions raise probe R² without changing behaviour.
-
-    From LONG_REPORT §4.2:
-        Optimal choice (controlled-orientation): all ~50%
-        Probe R² (chained distance): 0.315, 0.356, 0.361, 0.405
-        Task success: 93%, 90%, 89%, 75%
-    """
-    variants = ["Baseline", "Aux loss\n(0.2)", "Trans loss\n(0.1)", "Combined"]
-    optimal = [50, 50, 50, 50]
-    probe_r2 = [0.315, 0.356, 0.361, 0.405]
-    task_success = [93, 90, 89, 75]
-
-    fig, axes = plt.subplots(1, 3, figsize=(12.5, 4.2))
-
-    ax = axes[0]
-    bars = ax.bar(variants, optimal, color=RED, edgecolor="black", linewidth=0.6)
-    ax.axhline(50, color="gray", linestyle="--", linewidth=1, label="Chance")
-    ax.set_ylim(0, 100)
-    ax.set_ylabel("Optimal choice (%)")
-    ax.set_title("Planning behaviour\n(on optvar)")
-    ax.legend(loc="upper right", frameon=False)
-    for b, v in zip(bars, optimal):
-        ax.text(b.get_x() + b.get_width() / 2, v + 2, f"~{v}%",
-                ha="center", fontweight="bold")
-
-    ax = axes[1]
-    bars = ax.bar(variants, probe_r2, color=BLUE, edgecolor="black", linewidth=0.6)
-    ax.set_ylim(0, 0.5)
-    ax.set_ylabel(r"Chained-distance probe R$^2$")
-    ax.set_title("Representational content\n(intermediate → goal)")
-    for b, v in zip(bars, probe_r2):
-        ax.text(b.get_x() + b.get_width() / 2, v + 0.012, f"{v:.3f}",
-                ha="center", fontweight="bold")
-
-    ax = axes[2]
-    bars = ax.bar(variants, task_success, color=GREEN, edgecolor="black", linewidth=0.6)
-    ax.set_ylim(0, 105)
-    ax.set_ylabel("Task success (%)")
-    ax.set_title("Task completion")
-    for b, v in zip(bars, task_success):
-        ax.text(b.get_x() + b.get_width() / 2, v + 2, f"{v}%",
-                ha="center", fontweight="bold")
-
-    fig.suptitle("Auxiliary supervision improves the representation, "
-                 "not the behaviour",
-                 y=1.04, fontsize=13)
-    fig.tight_layout()
-    save(fig, "07_planning_incentives.png")
-    plt.close(fig)
-
-
 def figure_01_setup():
-    """Clean setup diagram for the intro.
+    """Setup diagram for §1, using the repo's own zone-visualisation conventions.
 
-    Shows the task `F blue THEN F green` with two candidate blue zones, one
-    myopic (closer to the agent) and one optimal (closer to the goal), plus
-    two distractor zones. Dashed lines indicate the paths a planning and a
-    myopic agent would each take. The figure does *not* claim the agent does
-    either — it illustrates the task structure.
+    Same `draw_zones` / `draw_diamond` / `setup_axis` / `FancyAxes` styling as
+    the optvar trajectory panels in figure 02, so the two figures look like
+    they came from the same set of tools.
     """
-    import matplotlib.patches as mpatches
+    import sys as _sys
+    _sys.path.insert(0, "src")
+    from matplotlib import projections
+    from visualize.zones import draw_zones, draw_diamond, setup_axis, FancyAxes
+    projections.register_projection(FancyAxes)
 
-    fig, ax = plt.subplots(figsize=(7, 7))
-
-    # Positions chosen so the two paths are visually distinct (not collinear)
+    # Positions in the same coord system as fig 02 (xlim/ylim = (-3, 3))
     agent = (0.0, 1.4)
-    myopic_blue = (1.8, 1.4)           # right of agent — very close
-    optimal_blue = (-1.8, 0.1)         # far left, mid — longer first leg
-    goal = (-1.5, -1.9)                # bottom left, close to optimal
-    distractor_yellow = (2.2, -0.4)
-    distractor_magenta = (0.2, 2.6)
+    myopic_blue = (1.7, 1.4)
+    optimal_blue = (-1.8, 0.2)
+    goal = (-1.4, -1.8)
+    distractor_yellow = (2.1, -0.5)
+    distractor_magenta = (0.4, 2.4)
 
-    zone_radius = 0.35
+    zones = {
+        "blue_myopic":     myopic_blue,
+        "blue_optimal":    optimal_blue,
+        "green_goal":      goal,
+        "yellow_distract": distractor_yellow,
+        "magenta_distract": distractor_magenta,
+    }
 
-    def zone(xy, colour, label=None, dashed=False, label_offset=(0, -0.6)):
-        circ = mpatches.Circle(xy, zone_radius,
-                               facecolor=colour,
-                               edgecolor=colour,
-                               alpha=0.35 if dashed else 0.9,
-                               linestyle="--" if dashed else "-",
-                               linewidth=1.8)
-        ax.add_patch(circ)
-        if label is not None:
-            ax.annotate(label,
-                        xy=(xy[0] + label_offset[0], xy[1] + label_offset[1]),
-                        ha="center", va="top",
-                        fontsize=10, fontweight="bold",
-                        color="#333")
+    fig = plt.figure(figsize=(6.2, 6.6))
+    ax = fig.add_subplot(1, 1, 1, projection="fancy_box_axes",
+                         edgecolor="gray", linewidth=0.5)
+    setup_axis(ax)
 
-    zone(distractor_yellow, ZONE_YELLOW, dashed=True)
-    zone(distractor_magenta, ZONE_MAGENTA, dashed=True)
+    draw_zones(ax, zones)
+    draw_diamond(ax, agent, color="orange")
 
-    zone(myopic_blue, ZONE_BLUE,
-         label="MYOPIC blue", label_offset=(0.55, 0.15))
-    zone(optimal_blue, ZONE_BLUE,
-         label="OPTIMAL blue", label_offset=(-0.7, 0.05))
-    zone(goal, ZONE_GREEN,
-         label="GOAL (green)", label_offset=(0.55, -0.05))
-
+    # Two annotated paths as polylines (not dashed grid lines, not the agent's
+    # actual trajectory — the figure illustrates *task structure*).
     ax.plot([agent[0], optimal_blue[0], goal[0]],
             [agent[1], optimal_blue[1], goal[1]],
-            linestyle="--", linewidth=2.0, color="#2e7d32",
-            label="Optimal path  (agent → optimal blue → goal)",
-            zorder=3)
+            linestyle="--", linewidth=2.2, color="#2e7d32",
+            label="Optimal path", zorder=3)
     ax.plot([agent[0], myopic_blue[0], goal[0]],
             [agent[1], myopic_blue[1], goal[1]],
-            linestyle=":", linewidth=2.0, color="#ef6c00",
-            label="Myopic path  (agent → closer blue → goal)",
-            zorder=3)
+            linestyle=":", linewidth=2.2, color="#ef6c00",
+            label="Myopic path", zorder=3)
 
-    ax.plot(*agent, marker="D", markersize=14,
-            markerfacecolor=AGENT, markeredgecolor="black", zorder=5)
-    ax.annotate("agent", xy=(agent[0] - 0.35, agent[1] + 0.05),
-                ha="right", va="center",
-                fontsize=10, fontweight="bold", color="#333")
+    # Light text labels next to relevant zones
+    ax.annotate("MYOPIC blue", xy=(myopic_blue[0] + 0.55, myopic_blue[1] + 0.15),
+                fontsize=9, fontweight="bold", color="#333")
+    ax.annotate("OPTIMAL blue", xy=(optimal_blue[0] - 0.6, optimal_blue[1] + 0.55),
+                fontsize=9, fontweight="bold", color="#333")
+    ax.annotate("GOAL", xy=(goal[0] + 0.5, goal[1] - 0.05),
+                fontsize=9, fontweight="bold", color="#333")
+    ax.annotate("agent", xy=(agent[0] - 0.3, agent[1] + 0.05),
+                ha="right", va="center", fontsize=9, fontweight="bold",
+                color="#333")
 
-    ax.set_xlim(-3, 3)
-    ax.set_ylim(-3, 3)
-    ax.set_aspect("equal")
-    ax.grid(True, linestyle=":", linewidth=0.5, alpha=0.6)
-    ax.set_xticks([])
-    ax.set_yticks([])
-    for spine in ax.spines.values():
-        spine.set_edgecolor("#aaa")
-        spine.set_linewidth(0.8)
-    ax.spines["top"].set_visible(True)
-    ax.spines["right"].set_visible(True)
-
-    ax.legend(loc="upper left", frameon=False, fontsize=9)
-    ax.set_title(r"Task: $F\,\mathrm{blue}$ THEN $F\,\mathrm{green}$"
-                 "\nTwo candidate blue zones: the nearer one leaves a longer onward path",
-                 fontsize=11)
-
+    ax.legend(loc="lower right", frameon=False, fontsize=9)
+    ax.set_title(r"Task: $F\,\mathrm{blue}$ THEN $F\,\mathrm{green}$",
+                 fontsize=11, pad=6)
     fig.tight_layout()
     save(fig, "01_setup_map.png")
     plt.close(fig)
@@ -209,5 +108,3 @@ def figure_01_setup():
 
 if __name__ == "__main__":
     figure_01_setup()
-    figure_06_value_delta()
-    figure_07_planning_incentives()

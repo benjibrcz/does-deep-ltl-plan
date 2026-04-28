@@ -41,9 +41,9 @@ def arrow(ax, x0, y0, x1, y1, text=None, text_offset=(0, 0.07), color="black",
 
 
 def main():
-    fig, ax = plt.subplots(figsize=(10, 4.4))
-    ax.set_xlim(0, 12)
-    ax.set_ylim(0, 5)
+    fig, ax = plt.subplots(figsize=(11, 5.2))
+    ax.set_xlim(0, 13)
+    ax.set_ylim(0, 6)
     ax.set_aspect("equal")
     ax.axis("off")
 
@@ -55,62 +55,53 @@ def main():
     OUT = "#f7d0d0"
     PLAN = "#e2d5f0"
 
-    # -- Top row: environment branch
-    box(ax, 0.2, 3.5, 1.6, 0.8, "lidar +\nproprio.\n(80-d)", INPUT)
-    box(ax, 2.4, 3.5, 1.4, 0.8, "env_net\n(MLP)", NET)
-    box(ax, 4.4, 3.5, 1.6, 0.8, "env_emb\n(64-d)", EMB)
-    arrow(ax, 1.8, 3.9, 2.4, 3.9)
-    arrow(ax, 3.8, 3.9, 4.4, 3.9)
+    # -- Top row: environment branch (y = 4.3)
+    y_env = 4.3
+    box(ax, 0.2, y_env, 1.6, 0.9, "lidar +\nproprio.\n(80-d)", INPUT)
+    box(ax, 2.4, y_env, 1.4, 0.9, "env_net\n(MLP)", NET)
+    box(ax, 4.4, y_env, 1.6, 0.9, "env_emb\n(64-d)", EMB)
+    arrow(ax, 1.8, y_env + 0.45, 2.4, y_env + 0.45)
+    arrow(ax, 3.8, y_env + 0.45, 4.4, y_env + 0.45)
 
-    # -- Bottom row: LTL branch
-    box(ax, 0.2, 1.7, 1.6, 0.8, "LTL formula\n→ automaton\nstates", INPUT)
-    box(ax, 2.4, 1.7, 1.4, 0.8, "LTL_net\n(DeepSets+GRU)", NET)
-    box(ax, 4.4, 1.7, 1.6, 0.8, "ltl_emb\n(32-d)", EMB)
-    arrow(ax, 1.8, 2.1, 2.4, 2.1)
-    arrow(ax, 3.8, 2.1, 4.4, 2.1)
+    # -- Bottom row: LTL branch (y = 1.5)
+    y_ltl = 1.5
+    box(ax, 0.2, y_ltl, 1.6, 0.9, "LTL formula\n→ automaton\nstates", INPUT)
+    box(ax, 2.4, y_ltl, 1.4, 0.9, "LTL_net\n(DeepSets+GRU)", NET)
+    box(ax, 4.4, y_ltl, 1.6, 0.9, "ltl_emb\n(32-d)", EMB)
+    arrow(ax, 1.8, y_ltl + 0.45, 2.4, y_ltl + 0.45)
+    arrow(ax, 3.8, y_ltl + 0.45, 4.4, y_ltl + 0.45)
 
-    # planner brief annotation
-    ax.text(3.1, 1.45, "(includes search over plans)",
-            ha="center", fontsize=8, color="#666", style="italic")
-
-    # -- Concat
-    box(ax, 6.4, 2.6, 1.4, 0.8, "concat\n(96-d)", PLAN)
-    arrow(ax, 6.0, 3.9, 6.4, 3.2, lw=0.9)
-    arrow(ax, 6.0, 2.1, 6.4, 2.85, lw=0.9)
+    # -- Concat (centred between rows)
+    y_mid = 2.95
+    box(ax, 6.5, y_mid, 1.4, 0.9, "concat\n(96-d)", PLAN)
+    arrow(ax, 6.0, y_env + 0.45, 6.5, y_mid + 0.7, lw=0.9)
+    arrow(ax, 6.0, y_ltl + 0.45, 6.5, y_mid + 0.2, lw=0.9)
 
     # -- Actor MLP H1, H2, H3
-    box(ax, 8.2, 2.6, 0.7, 0.8, "H1\n64", HID, text_fontsize=9)
-    box(ax, 9.0, 2.6, 0.7, 0.8, "H2\n64", HID, text_fontsize=9)
-    box(ax, 9.8, 2.6, 0.7, 0.8, "H3\n64", HID, text_fontsize=9)
-    arrow(ax, 7.8, 3.0, 8.2, 3.0, lw=0.9)
-    arrow(ax, 8.9, 3.0, 9.0, 3.0, lw=0.9)
-    arrow(ax, 9.7, 3.0, 9.8, 3.0, lw=0.9)
-    # bracket label "actor.enc"
-    ax.annotate("", xy=(8.2, 2.45), xytext=(10.5, 2.45),
-                arrowprops=dict(arrowstyle="-", lw=0.7, color="#666"))
-    ax.text(9.35, 2.25, "actor.enc (H1 → H2 → H3)",
-            ha="center", fontsize=8.5, color="#444", style="italic")
+    box(ax, 8.6, y_mid, 0.75, 0.9, "H1\n(64)", HID, text_fontsize=9)
+    box(ax, 9.45, y_mid, 0.75, 0.9, "H2\n(64)", HID, text_fontsize=9)
+    box(ax, 10.30, y_mid, 0.75, 0.9, "H3\n(64)", HID, text_fontsize=9)
+    arrow(ax, 7.9, y_mid + 0.45, 8.6, y_mid + 0.45, lw=0.9)
+    arrow(ax, 9.35, y_mid + 0.45, 9.45, y_mid + 0.45, lw=0.9)
+    arrow(ax, 10.20, y_mid + 0.45, 10.30, y_mid + 0.45, lw=0.9)
 
     # -- Output
-    box(ax, 10.8, 2.6, 1.0, 0.8, "μ (2-d)\naction", OUT, text_fontsize=9)
-    arrow(ax, 10.5, 3.0, 10.8, 3.0, lw=0.9)
+    box(ax, 11.4, y_mid, 1.1, 0.9, "μ (2-d)\naction", OUT, text_fontsize=9)
+    arrow(ax, 11.05, y_mid + 0.45, 11.4, y_mid + 0.45, lw=0.9)
 
-    # -- IN label
-    ax.annotate("", xy=(7.0, 2.45), xytext=(7.6, 2.45),
-                arrowprops=dict(arrowstyle="-", lw=0.7, color="#666"))
-    ax.text(7.3, 2.25, "IN", ha="center", fontsize=8.5, color="#444",
-            style="italic")
+    # -- "IN" label *above* concat→H1 arrow (no bracket, no overlap)
+    ax.text(8.25, y_mid + 0.62, "IN",
+            ha="center", fontsize=9, color="#444", style="italic")
 
-    # -- Title
-    ax.text(6.0, 4.7, "DeepLTL agent",
-            ha="center", fontsize=12, fontweight="bold")
+    # -- "actor.enc" label *below* the H1/H2/H3 boxes via a single bracket
+    ax.annotate("", xy=(8.6, y_mid - 0.12), xytext=(11.05, y_mid - 0.12),
+                arrowprops=dict(arrowstyle="-", lw=0.7, color="#888"))
+    ax.text(9.83, y_mid - 0.40, "actor.enc",
+            ha="center", fontsize=9, color="#444", style="italic")
 
-    # -- Footer note
-    ax.text(6.0, 0.85,
-            "The 'planner output' (`ltl_emb`) jumps at sub-goal switches; "
-            "the actor concatenates it with `env_emb` and unrolls a 3-layer MLP "
-            "to produce the action.",
-            ha="center", fontsize=9, color="#444", wrap=True)
+    # -- Title at top
+    ax.text(6.5, 5.55, "DeepLTL agent",
+            ha="center", fontsize=13, fontweight="bold")
 
     fig.tight_layout()
     out_path = os.path.join(FIG_DIR, "00_architecture.png")

@@ -370,10 +370,10 @@ def main():
     projections.register_projection(FancyAxes)
 
     # Plot equidistant cases
-    n_show = min(20, len(equidistant_results))
+    n_show = min(10, len(equidistant_results))
     if n_show > 0:
         cols = 5
-        rows = (n_show + cols - 1) // cols
+        rows = 2
 
         fig = plt.figure(figsize=(4 * cols, 4.5 * rows))
 
