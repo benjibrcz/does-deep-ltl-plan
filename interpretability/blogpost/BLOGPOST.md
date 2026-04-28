@@ -129,10 +129,6 @@ The value function shows the same pattern. Holding the first sub-goal fixed and 
 
 ![Marginal value of the second sub-goal. ΔV(easy) and ΔV(hard) are within noise of each other; V does not discriminate downstream difficulty.](figures/06_value_anticipation.png)
 
-In a discrete pilot (Letter World, task `(F A ∨ F B) ∧ G ¬C`), this asymmetry is even more visible: the agent's safe-success rate is 65% when the unblocked letter is *up* and 12% when it is *left*. 72% of failures are decided on the first action, before any obstacle has entered sensor range.
-
-![Correct-choice rate on the Letter World safety task, broken down by the direction of the unblocked goal relative to the agent. Chance across four directions is 25% (dashed).](figures/09_letter_world_safety.png)
-
 ---
 
 ## 4. Causal: what the agent uses

@@ -120,41 +120,6 @@ def figure_07_planning_incentives():
     plt.close(fig)
 
 
-def figure_09_letter_world_direction():
-    """Letter World directional bias.
-
-    From deep-ltl/interpretability/REPORT.md §3.2 (fixed-map safety task):
-        UP    65%
-        DOWN  47%
-        RIGHT 40%
-        LEFT  12%
-    Overall safe success 38%; chance among four directions is 25%.
-    """
-    directions = ["Up", "Down", "Right", "Left"]
-    correct = [65, 47, 40, 12]
-
-    # Colour each bar relative to chance
-    colours = [GREEN, GREY, GREY, RED]
-
-    fig, ax = plt.subplots(figsize=(7, 4.5))
-    bars = ax.bar(directions, correct, color=colours,
-                  edgecolor="black", linewidth=0.6, width=0.55)
-    ax.axhline(25, color="gray", linestyle="--", linewidth=1, label="Chance (25%)")
-    ax.set_ylim(0, 80)
-    ax.set_ylabel("Correct-choice rate (%)")
-    ax.set_xlabel("Direction of the unblocked goal, relative to the agent")
-    ax.set_title("Letter World: success depends almost entirely on which way the goal lies")
-    ax.legend(frameon=False, loc="upper right")
-
-    for b, v in zip(bars, correct):
-        ax.text(b.get_x() + b.get_width() / 2, v + 1.5,
-                f"{v}%", ha="center", fontweight="bold")
-
-    fig.tight_layout()
-    save(fig, "09_letter_world_safety.png")
-    plt.close(fig)
-
-
 def figure_01_setup():
     """Clean setup diagram for the intro.
 
@@ -246,4 +211,3 @@ if __name__ == "__main__":
     figure_01_setup()
     figure_06_value_delta()
     figure_07_planning_incentives()
-    figure_09_letter_world_direction()
