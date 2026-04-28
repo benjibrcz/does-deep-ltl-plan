@@ -1,0 +1,55 @@
+{
+  "exp": "fresh_baseline",
+  "args": {
+    "exp": "fresh_baseline",
+    "n_episodes_per_goal": 25,
+    "out_dir": null
+  },
+  "rows": [
+    {
+      "goal": "blue",
+      "p_pi_raw": 1.0,
+      "p_rand_raw": 0.0,
+      "p_pi_smoothed": 0.9629629629629629,
+      "p_rand_smoothed": 0.037037037037037035,
+      "GD": 3.258096538021482,
+      "succ_pi": 25,
+      "succ_rand": 0,
+      "n": 25
+    },
+    {
+      "goal": "green",
+      "p_pi_raw": 0.92,
+      "p_rand_raw": 0.0,
+      "p_pi_smoothed": 0.8888888888888888,
+      "p_rand_smoothed": 0.037037037037037035,
+      "GD": 3.1780538303479458,
+      "succ_pi": 23,
+      "succ_rand": 0,
+      "n": 25
+    },
+    {
+      "goal": "yellow",
+      "p_pi_raw": 1.0,
+      "p_rand_raw": 0.0,
+      "p_pi_smoothed": 0.9629629629629629,
+      "p_rand_smoothed": 0.037037037037037035,
+      "GD": 3.258096538021482,
+      "succ_pi": 25,
+      "succ_rand": 0,
+      "n": 25
+    },
+    {
+      "goal": "magenta",
+      "p_pi_raw": 1.0,
+      "p_rand_raw": 0.0,
+      "p_pi_smoothed": 0.9629629629629629,
+      "p_rand_smoothed": 0.037037037037037035,
+      "GD": 3.258096538021482,
+      "succ_pi": 25,
+      "succ_rand": 0,
+      "n": 25
+    }
+  ],
+  "mean_GD": 3.238085861103098
+}

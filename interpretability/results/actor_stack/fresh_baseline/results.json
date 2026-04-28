@@ -1,0 +1,203 @@
+{
+  "exp": "fresh_baseline",
+  "args": {
+    "exp": "fresh_baseline",
+    "n_episodes": 80,
+    "max_steps": 120,
+    "out_dir": null
+  },
+  "n_states": 6498,
+  "n_episodes": 80,
+  "results": {
+    "IN": {
+      "agent_speed": {
+        "score": 0.7729739276937762,
+        "metric": "R^2"
+      },
+      "goal_colour_id": {
+        "score": 1.0,
+        "metric": "Acc"
+      },
+      "bearing_to_goal_cls8": {
+        "score": 0.13369820172009383,
+        "metric": "Acc"
+      },
+      "dist_to_goal": {
+        "score": -0.9152505370224697,
+        "metric": "R^2"
+      },
+      "policy_turn_sign": {
+        "score": 0.6591086786551994,
+        "metric": "Acc"
+      },
+      "policy_angle_cls8": {
+        "score": 0.5856137607505864,
+        "metric": "Acc"
+      },
+      "policy_mu_norm": {
+        "score": -0.037955999214998926,
+        "metric": "R^2"
+      },
+      "agent_x": {
+        "score": -0.49408060493319206,
+        "metric": "R^2"
+      },
+      "delta_x": {
+        "score": -0.18170313898264356,
+        "metric": "R^2"
+      }
+    },
+    "H1": {
+      "agent_speed": {
+        "score": 0.03766727891263122,
+        "metric": "R^2"
+      },
+      "goal_colour_id": {
+        "score": 1.0,
+        "metric": "Acc"
+      },
+      "bearing_to_goal_cls8": {
+        "score": 0.11336982017200939,
+        "metric": "Acc"
+      },
+      "dist_to_goal": {
+        "score": -0.9143428287768065,
+        "metric": "R^2"
+      },
+      "policy_turn_sign": {
+        "score": 0.746677091477717,
+        "metric": "Acc"
+      },
+      "policy_angle_cls8": {
+        "score": 0.6872556684910086,
+        "metric": "Acc"
+      },
+      "policy_mu_norm": {
+        "score": -0.06114040357051587,
+        "metric": "R^2"
+      },
+      "agent_x": {
+        "score": -0.7321686730243888,
+        "metric": "R^2"
+      },
+      "delta_x": {
+        "score": -0.1086425062777503,
+        "metric": "R^2"
+      }
+    },
+    "H2": {
+      "agent_speed": {
+        "score": 0.16321478524875677,
+        "metric": "R^2"
+      },
+      "goal_colour_id": {
+        "score": 1.0,
+        "metric": "Acc"
+      },
+      "bearing_to_goal_cls8": {
+        "score": 0.10711493354182955,
+        "metric": "Acc"
+      },
+      "dist_to_goal": {
+        "score": -0.33736610200769945,
+        "metric": "R^2"
+      },
+      "policy_turn_sign": {
+        "score": 0.9304143862392494,
+        "metric": "Acc"
+      },
+      "policy_angle_cls8": {
+        "score": 0.8835027365129007,
+        "metric": "Acc"
+      },
+      "policy_mu_norm": {
+        "score": 0.016803890303861313,
+        "metric": "R^2"
+      },
+      "agent_x": {
+        "score": -0.8579657335633655,
+        "metric": "R^2"
+      },
+      "delta_x": {
+        "score": -0.20096131505566395,
+        "metric": "R^2"
+      }
+    },
+    "H3": {
+      "agent_speed": {
+        "score": 0.33059654468482746,
+        "metric": "R^2"
+      },
+      "goal_colour_id": {
+        "score": 0.9843627834245504,
+        "metric": "Acc"
+      },
+      "bearing_to_goal_cls8": {
+        "score": 0.0906958561376075,
+        "metric": "Acc"
+      },
+      "dist_to_goal": {
+        "score": -0.2219554900582199,
+        "metric": "R^2"
+      },
+      "policy_turn_sign": {
+        "score": 0.9882720875684128,
+        "metric": "Acc"
+      },
+      "policy_angle_cls8": {
+        "score": 0.9468334636434714,
+        "metric": "Acc"
+      },
+      "policy_mu_norm": {
+        "score": 0.06862685337274754,
+        "metric": "R^2"
+      },
+      "agent_x": {
+        "score": -0.39220660786513384,
+        "metric": "R^2"
+      },
+      "delta_x": {
+        "score": -0.053252100660835744,
+        "metric": "R^2"
+      }
+    },
+    "OUT": {
+      "agent_speed": {
+        "score": 0.006670143507822024,
+        "metric": "R^2"
+      },
+      "goal_colour_id": {
+        "score": 0.38389366692728694,
+        "metric": "Acc"
+      },
+      "bearing_to_goal_cls8": {
+        "score": 0.07896794370602032,
+        "metric": "Acc"
+      },
+      "dist_to_goal": {
+        "score": -0.07897366019023777,
+        "metric": "R^2"
+      },
+      "policy_turn_sign": {
+        "score": 1.0,
+        "metric": "Acc"
+      },
+      "policy_angle_cls8": {
+        "score": 0.9382329945269742,
+        "metric": "Acc"
+      },
+      "policy_mu_norm": {
+        "score": 0.0005618815376569053,
+        "metric": "R^2"
+      },
+      "agent_x": {
+        "score": -0.032640339719318234,
+        "metric": "R^2"
+      },
+      "delta_x": {
+        "score": -0.29764162437711583,
+        "metric": "R^2"
+      }
+    }
+  }
+}

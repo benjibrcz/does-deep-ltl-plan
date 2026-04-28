@@ -1,0 +1,24 @@
+{
+  "exp": "fresh_baseline",
+  "args": {
+    "exp": "fresh_baseline",
+    "collect_episodes_per_colour": 15,
+    "mlp_trials": 120,
+    "swap_trials": 120,
+    "alpha": 20.0,
+    "out_dir": null
+  },
+  "classifier_accuracy": 1.0,
+  "mlp_steering": {
+    "n": 120,
+    "visited_any": 17,
+    "matched_target_rate": 0.008333333333333333,
+    "matched_source_rate": 0.09166666666666666
+  },
+  "sequence_swap": {
+    "n": 120,
+    "visited_any": 119,
+    "matched_target_rate": 0.8666666666666667,
+    "matched_source_rate": 0.041666666666666664
+  }
+}

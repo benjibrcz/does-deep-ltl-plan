@@ -1,0 +1,45 @@
+{
+  "exp": "fresh_baseline",
+  "args": {
+    "exp": "fresh_baseline",
+    "n_episodes": 80,
+    "max_steps": 300,
+    "out_dir": null
+  },
+  "n_states": 15625,
+  "n_switches": 80,
+  "results": {
+    "delta_h": {
+      "overall": {
+        "f(h)": 0.3616795241832733,
+        "f(h, action)": 0.5367552638053894
+      },
+      "during_link": {
+        "f(h)": 0.3687751591205597,
+        "f(h, action)": 0.5483435988426208
+      },
+      "at_switch": {
+        "f(h)": 0.7868973612785339,
+        "f(h, action)": 0.8528839945793152
+      }
+    },
+    "delta_ltl": {
+      "overall": {
+        "f(h)": 0.007002679631114006,
+        "f(h, action)": 0.0069383615627884865
+      },
+      "during_link": {
+        "f(h)": 1.0,
+        "f(h, action)": 1.0
+      },
+      "at_switch": {
+        "f(h)": 0.9695055484771729,
+        "f(h, action)": 0.9672017097473145
+      }
+    },
+    "baselines_ltl": {
+      "\u0394ltl \u2261 0": -0.0006442617159336805,
+      "\u0394ltl \u2261 mean(train)": -0.0008637555874884129
+    }
+  }
+}

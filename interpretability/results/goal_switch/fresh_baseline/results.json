@@ -1,0 +1,30 @@
+{
+  "exp": "fresh_baseline",
+  "args": {
+    "exp": "fresh_baseline",
+    "n_episodes": 80,
+    "out_dir": null
+  },
+  "summary": {
+    "baseline": {
+      "successes": 79,
+      "n": 80,
+      "rate": 0.9875
+    },
+    "zero_at_switch_1": {
+      "successes": 77,
+      "n": 80,
+      "rate": 0.9625
+    },
+    "zero_at_switch_3": {
+      "successes": 74,
+      "n": 80,
+      "rate": 0.925
+    },
+    "random_at_switch_1": {
+      "successes": 79,
+      "n": 80,
+      "rate": 0.9875
+    }
+  }
+}
