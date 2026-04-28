@@ -25,6 +25,20 @@ def get_task_class_name(task_id):
     if '.fixed' in task_id:
         class_name = 'LtlFixed'
         return class_name
+    if '.hard1' in task_id:
+        return 'LtlHardOptimality1'
+    if '.hard2' in task_id:
+        return 'LtlHardOptimality2'
+    if '.hard3' in task_id:
+        return 'LtlHardOptimality3'
+    if '.hard4' in task_id:
+        return 'LtlHardOptimality4'
+    if '.hardmix' in task_id:
+        return 'LtlHardOptimalityMixed'
+    if '.optvar' in task_id:
+        return 'LtlOptimalityVaried'
+    if '.opteq' in task_id:
+        return 'LtlOptimalityEquidistant'
     if 'Ltl' in task_id:
         task_num = task_id.split('-')[0][-1]
         class_name = f'Ltl{task_num}'

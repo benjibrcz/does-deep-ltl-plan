@@ -9,8 +9,15 @@ import torch
 from ltl.automata import LDBASequence
 from sequence.samplers.flatworld_sequence_samplers import flatworld_all_reach_tasks, \
     flatworld_sample_reach_avoid, flatworld_sample_reach_stay, flatworld_sample_reach
-from sequence.samplers.sequence_samplers import sample_reach_avoid, all_reach_avoid_tasks, all_reach_tasks, \
-    all_reach_stay_tasks, sample_reach_stay
+from sequence.samplers.sequence_samplers import (
+    sample_reach_avoid, all_reach_avoid_tasks, all_reach_tasks,
+    all_reach_stay_tasks, sample_reach_stay,
+    # Planning-required samplers
+    sample_disjunctive_reach, sample_global_avoid, sample_disjunctive_reach_global_avoid,
+    all_disjunctive_reach_tasks, all_reach_global_avoid_tasks, all_disjunctive_reach_global_avoid_tasks,
+    # Hard optimality samplers
+    sample_optimality_task, all_optimality_tasks,
+)
 
 
 @dataclass
@@ -227,6 +234,340 @@ ZONES_CURRICULUM = Curriculum([
     ),
 ])
 
+
+# =============================================================================
+# ZONES TWO-STEP CURRICULUM (Author's suggestion)
+# =============================================================================
+# Modified curriculum that STARTS with 2-step sequences to avoid biasing
+# the agent toward "go to closest zone" heuristic.
+#
+# Key changes from ZONES_CURRICULUM:
+# - Stage 0: Start with 2-step reach sequences (not 1-step)
+# - Stage 1: 2-step reach-avoid sequences (skip 1-step reach-avoid)
+# - Combined with lower discount factor (0.95) to amplify return differences
+#
+# Rationale (from DeepLTL author):
+# - Single-step training biases agent to prefer closest zone
+# - High discount (0.998) makes optimal/suboptimal returns nearly equal
+# - Starting with 2-step may encourage planning from the beginning
+
+ZONES_TWOSTEP_CURRICULUM = Curriculum([
+    ExplicitCurriculumStage(  # 0: Start directly with 2-step reach
+        task_fn=all_reach_tasks(2),
+        temperature=0.5,
+        threshold=0.8,
+        threshold_type='min',
+    ),
+    ExplicitCurriculumStage(  # 1: 2-step reach-avoid (skip 1-step)
+        task_fn=all_reach_avoid_tasks(2),
+        threshold=0.9,
+        threshold_type='mean'
+    ),
+    MultiRandomStage(  # 2: Mix of 2-step and 3-step reach-avoid
+        stages=[
+            RandomCurriculumStage(
+                sampler=sample_reach_avoid(2, (1, 2), (1, 2)),
+                threshold=None,
+                threshold_type=None
+            ),
+            RandomCurriculumStage(
+                sampler=sample_reach_avoid(3, (1, 2), (0, 2)),
+                threshold=None,
+                threshold_type=None
+            ),
+        ],
+        probs=[0.6, 0.4],
+        threshold=0.9,
+        threshold_type='mean'
+    ),
+    MultiRandomStage(  # 3: Complex multi-step tasks
+        stages=[
+            RandomCurriculumStage(
+                sampler=sample_reach_avoid(3, (1, 2), (0, 3)),
+                threshold=None,
+                threshold_type=None
+            ),
+            RandomCurriculumStage(
+                sampler=sample_reach_stay(60, (0, 2)),
+                threshold=None,
+                threshold_type=None
+            ),
+        ],
+        probs=[0.8, 0.2],
+        threshold=None,
+        threshold_type=None
+    ),
+])
+
+
+# =============================================================================
+# ZONES MIXED CURRICULUM (V2: mixed2)
+# =============================================================================
+# Starts with 2-step sequences but includes 10-25% of 1-step for stability.
+# This avoids the "nearest-zone lock-in" while maintaining training stability.
+#
+# Key design:
+# - Stage 0: 75% 2-step reach + 25% 1-step reach (stabilized start)
+# - Stage 1: 90% 2-step reach-avoid + 10% 1-step reach-avoid
+# - Later stages: progressively longer sequences
+
+ZONES_MIXED_CURRICULUM = Curriculum([
+    MultiRandomStage(  # 0: Mixed 1-step (25%) + 2-step (75%) reach
+        stages=[
+            ExplicitCurriculumStage(
+                task_fn=all_reach_tasks(1),
+                temperature=0.5,
+                threshold=None,
+                threshold_type=None,
+            ),
+            ExplicitCurriculumStage(
+                task_fn=all_reach_tasks(2),
+                temperature=0.5,
+                threshold=None,
+                threshold_type=None,
+            ),
+        ],
+        probs=[0.25, 0.75],
+        threshold=0.8,
+        threshold_type='min',
+    ),
+    MultiRandomStage(  # 1: Mixed 1-step (10%) + 2-step (90%) reach-avoid
+        stages=[
+            ExplicitCurriculumStage(
+                task_fn=all_reach_avoid_tasks(1),
+                temperature=0.5,
+                threshold=None,
+                threshold_type=None,
+            ),
+            ExplicitCurriculumStage(
+                task_fn=all_reach_avoid_tasks(2),
+                temperature=0.5,
+                threshold=None,
+                threshold_type=None,
+            ),
+        ],
+        probs=[0.10, 0.90],
+        threshold=0.9,
+        threshold_type='mean',
+    ),
+    MultiRandomStage(  # 2: Mix of 2-step and 3-step reach-avoid
+        stages=[
+            RandomCurriculumStage(
+                sampler=sample_reach_avoid(2, (1, 2), (1, 2)),
+                threshold=None,
+                threshold_type=None
+            ),
+            RandomCurriculumStage(
+                sampler=sample_reach_avoid(3, (1, 2), (0, 2)),
+                threshold=None,
+                threshold_type=None
+            ),
+        ],
+        probs=[0.6, 0.4],
+        threshold=0.9,
+        threshold_type='mean'
+    ),
+    MultiRandomStage(  # 3: Complex multi-step tasks
+        stages=[
+            RandomCurriculumStage(
+                sampler=sample_reach_avoid(3, (1, 2), (0, 3)),
+                threshold=None,
+                threshold_type=None
+            ),
+            RandomCurriculumStage(
+                sampler=sample_reach_stay(60, (0, 2)),
+                threshold=None,
+                threshold_type=None
+            ),
+        ],
+        probs=[0.8, 0.2],
+        threshold=None,
+        threshold_type=None
+    ),
+])
+
+
+# =============================================================================
+# ZONES PLANNING CURRICULUM
+# =============================================================================
+# Extended curriculum that adds planning-required formula types:
+# - Disjunction: (F A | F B) - agent must choose between goals
+# - Global safety: G !avoid - permanent avoid constraint
+# - Combined: (F A | F B) & G !C - paper's Figure 1c safety test
+#
+# Stages 0-6: Same as ZONES_CURRICULUM (foundational skills)
+# Stages 7-11: New planning-required formulas
+
+ZONES_PLANNING_CURRICULUM = Curriculum([
+    # =========================================================================
+    # PHASE 1: Original curriculum (stages 0-6) - same as ZONES_CURRICULUM
+    # =========================================================================
+    ExplicitCurriculumStage(  # 0: Simple reach
+        task_fn=all_reach_tasks(1),
+        temperature=0.5,
+        threshold=0.8,
+        threshold_type='min',
+    ),
+    ExplicitCurriculumStage(  # 1: 2-step reach sequences
+        task_fn=all_reach_tasks(2),
+        threshold=0.95,
+        threshold_type='mean'
+    ),
+    ExplicitCurriculumStage(  # 2: Reach-avoid (1 step)
+        task_fn=all_reach_avoid_tasks(1),
+        threshold=0.95,
+        threshold_type='mean'
+    ),
+    ExplicitCurriculumStage(  # 3: Reach-avoid (2 steps)
+        task_fn=all_reach_avoid_tasks(2),
+        threshold=0.9,
+        threshold_type='mean'
+    ),
+    MultiRandomStage(  # 4: Mixed reach-avoid + reach-stay
+        stages=[
+            RandomCurriculumStage(
+                sampler=sample_reach_avoid(1, (1, 2), (0, 2)),
+                threshold=None,
+                threshold_type=None
+            ),
+            RandomCurriculumStage(
+                sampler=sample_reach_stay(30, (0, 1)),
+                threshold=None,
+                threshold_type=None
+            ),
+        ],
+        probs=[0.4, 0.6],
+        threshold=0.9,
+        threshold_type='mean'
+    ),
+    MultiRandomStage(  # 5: Deeper reach-avoid + reach-stay
+        stages=[
+            RandomCurriculumStage(
+                sampler=sample_reach_avoid(2, (1, 2), (1, 2)),
+                threshold=None,
+                threshold_type=None
+            ),
+            RandomCurriculumStage(
+                sampler=sample_reach_stay(60, (0, 1)),
+                threshold=None,
+                threshold_type=None
+            ),
+        ],
+        probs=[0.8, 0.2],
+        threshold=0.9,
+        threshold_type='mean'
+    ),
+    MultiRandomStage(  # 6: Complex reach-avoid + reach-stay
+        stages=[
+            RandomCurriculumStage(
+                sampler=sample_reach_avoid(3, (1, 2), (0, 3)),
+                threshold=None,
+                threshold_type=None
+            ),
+            RandomCurriculumStage(
+                sampler=sample_reach_stay(60, (0, 2)),
+                threshold=None,
+                threshold_type=None
+            ),
+        ],
+        probs=[0.8, 0.2],
+        threshold=0.85,  # Need threshold to advance to planning stages
+        threshold_type='mean'
+    ),
+
+    # =========================================================================
+    # PHASE 2: Planning-required formulas (stages 7-11)
+    # =========================================================================
+
+    # Stage 7: Disjunctive reach - (F A | F B)
+    ExplicitCurriculumStage(
+        task_fn=all_disjunctive_reach_tasks(1, num_disjuncts=2),
+        temperature=0.5,
+        threshold=0.9,
+        threshold_type='mean'
+    ),
+
+    # Stage 8: Global safety - F goal & G !avoid
+    ExplicitCurriculumStage(
+        task_fn=all_reach_global_avoid_tasks(1),
+        temperature=0.5,
+        threshold=0.9,
+        threshold_type='mean'
+    ),
+
+    # Stage 9: Combined - (F A | F B) & G !C (paper's Figure 1c)
+    ExplicitCurriculumStage(
+        task_fn=all_disjunctive_reach_global_avoid_tasks(num_disjuncts=2),
+        temperature=0.5,
+        threshold=0.85,
+        threshold_type='mean'
+    ),
+
+    # Stage 10: Mixed planning tasks
+    MultiRandomStage(
+        stages=[
+            RandomCurriculumStage(
+                sampler=sample_reach_avoid(2, (1, 2), (1, 2)),
+                threshold=None,
+                threshold_type=None
+            ),
+            RandomCurriculumStage(
+                sampler=sample_disjunctive_reach(1, (2, 3), (0, 1)),
+                threshold=None,
+                threshold_type=None
+            ),
+            RandomCurriculumStage(
+                sampler=sample_global_avoid(1, 1, (1, 2)),
+                threshold=None,
+                threshold_type=None
+            ),
+            RandomCurriculumStage(
+                sampler=sample_disjunctive_reach_global_avoid(1, (2, 3), (1, 2)),
+                threshold=None,
+                threshold_type=None
+            ),
+        ],
+        probs=[0.3, 0.2, 0.2, 0.3],
+        threshold=0.85,
+        threshold_type='mean'
+    ),
+
+    # Stage 11: Final stage - all formula types
+    MultiRandomStage(
+        stages=[
+            RandomCurriculumStage(
+                sampler=sample_reach_avoid(3, (1, 2), (0, 3)),
+                threshold=None,
+                threshold_type=None
+            ),
+            RandomCurriculumStage(
+                sampler=sample_disjunctive_reach((1, 2), (2, 3), (0, 2)),
+                threshold=None,
+                threshold_type=None
+            ),
+            RandomCurriculumStage(
+                sampler=sample_global_avoid((1, 2), 1, (1, 2)),
+                threshold=None,
+                threshold_type=None
+            ),
+            RandomCurriculumStage(
+                sampler=sample_disjunctive_reach_global_avoid(1, (2, 3), (1, 2)),
+                threshold=None,
+                threshold_type=None
+            ),
+            RandomCurriculumStage(
+                sampler=sample_reach_stay(60, (0, 2)),
+                threshold=None,
+                threshold_type=None
+            ),
+        ],
+        probs=[0.2, 0.2, 0.15, 0.3, 0.15],
+        threshold=None,  # Final stage
+        threshold_type=None
+    ),
+])
+
+
 FLATWORLD_CURRICULUM = Curriculum([
     MultiRandomStage(  # 0
         stages=[
@@ -273,6 +614,29 @@ FLATWORLD_BIG_CURRICULUM = Curriculum([
     RandomCurriculumStage(
         sampler=sample_reach_avoid((1, 2), (1, 2), (0, 2)),
         threshold=None,
+        threshold_type=None
+    ),
+])
+
+
+# =============================================================================
+# HARD OPTIMALITY CURRICULUM
+# =============================================================================
+# Curriculum for training on hard optimality maps where myopic behavior fails.
+# Uses fixed zone positions (via PointLtl2-v0.hardmix environment) with
+# the "F blue THEN F green" task.
+#
+# The goal is to force the agent to learn chained distance computation:
+# choosing the blue zone that minimizes total path length, not just
+# the one closest to the agent.
+
+HARD_OPTIMALITY_CURRICULUM = Curriculum([
+    # Single stage: Always the optimality task on hard maps
+    # The environment (hardmix) provides the challenging zone configurations
+    ExplicitCurriculumStage(
+        task_fn=all_optimality_tasks(),
+        temperature=0.5,
+        threshold=None,  # No progression, always this task
         threshold_type=None
     ),
 ])

@@ -2,8 +2,8 @@ spot-2.9/
 owl-21.0/
 **/__pycache__
 .idea
+.venv
 wandb
-experiments
 .pytest_cache
 trajectories.pdf
 cache
@@ -12,3 +12,20 @@ multiple_results/
 *.fish
 paper_utils
 ldba.png
+
+# Ignore experiments by default, but keep the checkpoints we ship
+experiments/*
+!experiments/ppo
+experiments/ppo/*
+!experiments/ppo/PointLtl2-v0
+experiments/ppo/PointLtl2-v0/*
+!experiments/ppo/PointLtl2-v0/fresh_baseline
+experiments/ppo/PointLtl2-v0/fresh_baseline/*/eval
+
+# Ignore noisy interpretability outputs by default — re-include curated results
+interpretability/results/*.npz
+interpretability/results/*.npy
+interpretability/results/raw/
+
+rabinizer4
+.DS_Store

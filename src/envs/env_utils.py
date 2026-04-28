@@ -20,8 +20,20 @@ def make_env(
         sampler: Callable[[list[str]], Callable],
         max_steps: Optional[int] = None,
         render_mode: str | None = None,
-        sequence=False
+        sequence=False,
+        step_penalty: float = 0.0
 ):
+    """
+    Create an environment with LTL task wrapper.
+
+    Args:
+        name: Environment name
+        sampler: Task sampler
+        max_steps: Maximum steps per episode
+        render_mode: Rendering mode
+        sequence: If True, use SequenceWrapper (for training)
+        step_penalty: Penalty per step to incentivize shorter paths
+    """
     from envs.seq_wrapper import SequenceWrapper
     from envs.ldba_wrapper import LDBAWrapper
     from envs.ltl_wrapper import LTLWrapper
@@ -45,7 +57,7 @@ def make_env(
         env = LTLWrapper(env, sample_task)
         env = LDBAWrapper(env)
     else:
-        env = SequenceWrapper(env, sample_task)
+        env = SequenceWrapper(env, sample_task, step_penalty=step_penalty)
     env = TimeLimit(env, max_episode_steps=max_steps)
     env = RemoveTruncWrapper(env)
     return env

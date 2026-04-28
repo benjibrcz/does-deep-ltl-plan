@@ -23,18 +23,18 @@ class LtlFixed(LtlBaseTask):
     def __init__(self, config) -> None:
         super().__init__(config=config, zone_size=0.4)
 
-        # Optimality
-        # self._add_geoms(Zones(color='green', size=self.zone_size, num=1, locations=[(-1.4, -1.9)], keepout=0))
-        # self._add_geoms(Zones(color='yellow', size=self.zone_size, num=1, locations=[(1.4, 2.3)]))
-        # self._add_geoms(Zones(color='blue', size=self.zone_size, num=2, locations=[(-0.8, -1), (1, 1)], keepout=0))
-        # self._add_geoms(Zones(color='magenta', size=self.zone_size, num=1, locations=[(-1.7, 1.2)], keepout=0))
-        # self._set_agent_location((0.2, 0.2))
+        # Optimality - ACTIVE
+        self._add_geoms(Zones(color='green', size=self.zone_size, num=1, locations=[(-1.4, -1.9)], keepout=0))
+        self._add_geoms(Zones(color='yellow', size=self.zone_size, num=1, locations=[(1.4, 2.3)]))
+        self._add_geoms(Zones(color='blue', size=self.zone_size, num=2, locations=[(-0.8, -1), (1, 1)], keepout=0))
+        self._add_geoms(Zones(color='magenta', size=self.zone_size, num=1, locations=[(-1.7, 1.2)], keepout=0))
+        self._set_agent_location((0.2, 0.2))
 
-        # Safety
-        self._add_geoms(Zones(color='green', size=self.zone_size, num=1, locations=[(1.2, -1.9)], keepout=0))
-        self._add_geoms(Zones(color='yellow', size=self.zone_size, num=1, locations=[(1.1, 2.1)]))
-        self._add_geoms(Zones(color='blue', size=self.zone_size, num=3, locations=[(2, -1), (.6, -1.05), (.1, -2.3)], keepout=0))
-        self._add_geoms(Zones(color='magenta', size=self.zone_size, num=1, locations=[(1.8, 0.4)], keepout=0))
-        self._set_agent_location((-1.2, -.6))
+        # Safety - DISABLED
+        # self._add_geoms(Zones(color='green', size=self.zone_size, num=1, locations=[(1.2, -1.9)], keepout=0))
+        # self._add_geoms(Zones(color='yellow', size=self.zone_size, num=1, locations=[(1.1, 2.1)]))
+        # self._add_geoms(Zones(color='blue', size=self.zone_size, num=3, locations=[(2, -1), (.6, -1.05), (.1, -2.3)], keepout=0))
+        # self._add_geoms(Zones(color='magenta', size=self.zone_size, num=1, locations=[(1.8, 0.4)], keepout=0))
+        # self._set_agent_location((-1.2, -.6))
 
         # self._set_agent_rotation(np.pi / 2)

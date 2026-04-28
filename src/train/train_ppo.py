@@ -31,21 +31,42 @@ class Trainer:
         self.args = args
         self.text_logger = TextLogger(args)
         self.model_store = ModelStore.from_config(args)
+        # For fine-tuning from another experiment
+        self.from_exp = getattr(args, 'from_exp', None)
+        self.from_seed = getattr(args, 'from_seed', 0)
+        # Path efficiency incentive
+        self.step_penalty = getattr(args, 'step_penalty', 0.0)
+        # Auxiliary prediction loss
+        self.aux_loss_coef = getattr(args, 'aux_loss_coef', 0.0)
+        self.use_aux_head = getattr(args, 'use_aux_head', False) or self.aux_loss_coef > 0
+        # Transition prediction loss
+        self.transition_loss_coef = getattr(args, 'transition_loss_coef', 0.0)
+        self.use_transition_head = getattr(args, 'use_transition_head', False) or self.transition_loss_coef > 0
 
     def train(self, log_csv: bool = True, log_wandb: bool = False):
         training_status, resuming = self.get_training_status()
         envs = self.make_envs(training_status["curriculum_stage"])
         if resuming:
             self.model_store.load_vocab()
+        elif self.from_exp:
+            # Fine-tuning: load vocab from source experiment
+            source_store = ModelStore(self.args.experiment.env.split('.')[0], self.from_exp, self.from_seed)
+            source_store.load_vocab()
+            self.model_store.save_vocab()
+            self.text_logger.important_info(f"Loaded vocab from {self.from_exp}")
         else:
             assignments = envs[0].get_possible_assignments()
             print(f'Number of assignments: {len(assignments)}')
             preprocessing.init_vocab(assignments)
             self.model_store.save_vocab()
-        model = build_model(envs[0], training_status, model_configs[self.args.model_config])
+        model = build_model(envs[0], training_status, model_configs[self.args.model_config],
+                           use_aux_head=self.use_aux_head,
+                           use_transition_head=self.use_transition_head)
         model.to(self.args.experiment.device)
         algo = torch_ac.PPO(envs, model, self.args.experiment.device, self.args.ppo,
-                            preprocess_obss=preprocessing.preprocess_obss, parallel=False)
+                            preprocess_obss=preprocessing.preprocess_obss, parallel=False,
+                            aux_loss_coef=self.aux_loss_coef,
+                            transition_loss_coef=self.transition_loss_coef)
         if "optimizer_state" in training_status:
             algo.optimizer.load_state_dict(training_status["optimizer_state"])
             self.text_logger.info("Loaded optimizer from existing run.")
@@ -100,7 +121,8 @@ class Trainer:
             curriculum.stage_index = curriculum_stage
             self.text_logger.important_info(f"Curriculum stage: {curriculum.stage_index}")
             sampler = CurriculumSampler.partial(curriculum)
-            envs.append(make_env(self.args.experiment.env, sampler, sequence=True))
+            envs.append(make_env(self.args.experiment.env, sampler, sequence=True,
+                                step_penalty=self.step_penalty))
         # Set different seeds for each environment. The seed offset is used to ensure that the seeds do not overlap.
         seed_offset = 100 * self.args.experiment.seed
         seeds = [seed_offset + i for i in range(self.args.experiment.num_procs)]
@@ -117,7 +139,21 @@ class Trainer:
             self.text_logger.important_info("Resuming training from existing run.")
             resuming = True
         except FileNotFoundError:
-            training_status = {"num_steps": 0, "num_updates": 0, "curriculum_stage": 0, "num_eval_steps": 0}
+            if self.from_exp:
+                # Fine-tuning: load model from source experiment
+                source_store = ModelStore(self.args.experiment.env.split('.')[0], self.from_exp, self.from_seed)
+                source_status = source_store.load_training_status()
+                # Keep the model weights but reset training counters and curriculum
+                training_status = {
+                    "num_steps": 0,
+                    "num_updates": 0,
+                    "curriculum_stage": 0,
+                    "num_eval_steps": 0,
+                    "model_state": source_status["model_state"]
+                }
+                self.text_logger.important_info(f"Fine-tuning from {self.from_exp} (seed {self.from_seed})")
+            else:
+                training_status = {"num_steps": 0, "num_updates": 0, "curriculum_stage": 0, "num_eval_steps": 0}
         return training_status, resuming
 
     def make_logger(self, log_csv: bool, log_wandb: bool, resuming: bool) -> MultiLogger:
@@ -160,6 +196,24 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument("--log_csv", action=argparse.BooleanOptionalAction, default=True)
     parser.add_argument("--log_wandb", action=argparse.BooleanOptionalAction, default=False)
     parser.add_argument('--save', action=argparse.BooleanOptionalAction, default=True)
+    # Fine-tuning options
+    parser.add_argument('--from_exp', type=str, default=None,
+                        help='Name of experiment to load model weights from (for fine-tuning)')
+    parser.add_argument('--from_seed', type=int, default=0,
+                        help='Seed of the model to load from (for fine-tuning)')
+    # Path efficiency incentive
+    parser.add_argument('--step_penalty', type=float, default=0.0,
+                        help='Penalty per step to incentivize shorter paths (e.g., 0.001)')
+    # Auxiliary prediction loss
+    parser.add_argument('--aux_loss_coef', type=float, default=0.0,
+                        help='Coefficient for auxiliary chained distance prediction loss (e.g., 0.1)')
+    parser.add_argument('--use_aux_head', action='store_true',
+                        help='Add auxiliary prediction head to model (auto-enabled if aux_loss_coef > 0)')
+    # Transition prediction loss
+    parser.add_argument('--transition_loss_coef', type=float, default=0.0,
+                        help='Coefficient for transition prediction loss (e.g., 0.1)')
+    parser.add_argument('--use_transition_head', action='store_true',
+                        help='Add transition prediction head to model (auto-enabled if transition_loss_coef > 0)')
     args = parser.parse_args()
 
     if args.experiment.device == 'gpu':

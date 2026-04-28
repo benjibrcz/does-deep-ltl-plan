@@ -99,6 +99,14 @@ class BaseAlgo(ABC):
         self.rewards = torch.zeros(*shape, device=self.device)
         self.advantages = torch.zeros(*shape, device=self.device)
         self.log_probs = torch.zeros(*shape, device=self.device)
+        # Storage for auxiliary prediction targets (chained distances)
+        self.chained_distances = torch.zeros(*shape, device=self.device)
+        # Storage for transition prediction: next env features after taking action
+        obs_shape = envs[0].observation_space['features'].shape
+        self.env_features_dim = obs_shape[0] if len(obs_shape) == 1 else obs_shape
+        self.next_env_features = torch.zeros(*shape, self.env_features_dim, device=self.device)
+        # Mask for valid transitions (0 if episode ended, so next state is a reset)
+        self.transition_valid = torch.zeros(*shape, device=self.device)
 
         # Initialize log values
 
@@ -162,6 +170,20 @@ class BaseAlgo(ABC):
 
             self.rewards[i] = torch.tensor(reward, device=self.device)
             self.log_probs[i] = dist.log_prob(action).detach()
+
+            # Collect chained distances for auxiliary loss
+            chained_dists = [inf.get('optimal_chained_distance', 0.0) for inf in info]
+            self.chained_distances[i] = torch.tensor(chained_dists, device=self.device)
+
+            # Collect next env features for transition prediction
+            # obs is the new state after taking the action
+            next_features = torch.tensor(
+                np.array([o['features'] for o in obs]),
+                device=self.device, dtype=torch.float
+            )
+            self.next_env_features[i] = next_features
+            # Transition is valid if episode did not end (we're predicting continuation, not reset)
+            self.transition_valid[i] = 1 - torch.tensor(done, device=self.device, dtype=torch.float)
 
             # Update log values
 
@@ -227,6 +249,9 @@ class BaseAlgo(ABC):
         exps.advantage = self.advantages.transpose(0, 1).reshape(-1)
         exps.returnn = exps.value + exps.advantage
         exps.log_prob = self.log_probs.transpose(0, 1).reshape(-1)
+        exps.chained_distance = self.chained_distances.transpose(0, 1).reshape(-1)
+        exps.next_env_features = self.next_env_features.transpose(0, 1).reshape(-1, self.env_features_dim)
+        exps.transition_valid = self.transition_valid.transpose(0, 1).reshape(-1)
 
         # Preprocess experiences
 
