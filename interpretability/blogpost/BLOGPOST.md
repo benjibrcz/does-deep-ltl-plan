@@ -8,11 +8,10 @@ This is joint work with Jonathan Richens (Google DeepMind); the framing draws on
 
 **Summary.**
 
-- On a custom environment where the myopic and optimal first sub-goal disagree by construction, the agent picks optimally **~50%** of the time, indistinguishable from chance.
-- An apparent above-chance signal (~58%) is fully explained by a **forward-motion bias** (74%, p < 0.0001). With orientation controlled, the residual disappears.
-- The chained-distance feature — what a planning agent would compute — is not linearly encoded under proper held-out evaluation (probe R² is *negative* on episode-disjoint splits). Only self-centric features generalise (R² ≈ 0.13 – 0.26).
-- Activation-level interventions are consistent: 1D ablation of either probe direction (chained or agent) shifts the optimal-choice rate by ≈ 10 percentage points toward more myopic behaviour, with task success preserved at ≈ 88%. Sufficiency sweeps along the chained-distance direction are flat. The policy is locally robust to single-direction perturbations.
-- Training interventions designed to induce planning — auxiliary chained-distance loss, transition loss, lower discount, two-step-heavy curriculum — do not move the optimality rate. The best stable variant achieves 85% task success at 52% optimal (p = 0.76).
+- On a custom environment where the myopic and optimal first sub-goal disagree by construction, the agent picks optimally **~50%** of the time. Task success on the same layouts is **93%**: about **43% of episodes succeed via the non-optimal path**. The above-chance signal we initially saw (58%) is fully explained by a **forward-motion bias**; when orientation is controlled, the residual disappears.
+- Probing the actor stack shows representations are progressively reshaped from environment-relevant to action-relevant: sensors fade, policy-aligned features rise, the goal-colour identifier is preserved through `H3` at 98% accuracy, and the agent's *bearing to the goal* is at chance throughout. There is no linearly decodable metric map and no clean self-centric goal-direction feature.
+- The goal pointer is decodable at 100% in `H3`, but **adding the probe direction at the actor MLP changes behaviour in 1% of trials**; replacing the planner's output (the LTL embedding) **redirects the agent in 87% of trials**. The actionable copy of the goal lives at the planner-actor bottleneck, not in the actor's distributed redundant copy. Probes find presence, not use.
+- Training interventions designed to induce planning — auxiliary chained-distance loss, transition loss, lower discount, two-step-heavy curriculum — do not move the optimality rate. Auxiliary supervision *does* raise the chained-distance probe R²; behaviour does not follow.
 
 The evidence converges on a heuristic account: forward motion, then closest relevant zone, then reactive obstacle avoidance — a stack that produces 95% completion on a completion-scored benchmark without any internal world model.
 
@@ -20,11 +19,13 @@ The evidence converges on a heuristic account: forward motion, then closest rele
 
 ## 1. The setup
 
-DeepLTL has three modules. An **LTL encoder** compiles the formula into a deterministic-Büchi automaton, summarised by a small GRU over its states. An **environment encoder** is an MLP over lidar observations. A **policy head** concatenates the two and outputs continuous actions for a point robot in the Zone environment — a flat arena of coloured circular zones.
+DeepLTL has three modules. An **LTL encoder** compiles the formula into a deterministic-Büchi automaton, summarised by a small GRU over its states. An **environment encoder** is an MLP over lidar observations. A **policy head** (called `actor.enc` in the codebase, a 3-layer MLP) concatenates the two and outputs continuous actions for a point robot in the Zone environment — a flat arena of coloured circular zones.
+
+![Architecture of the DeepLTL agent. The LTL formula is compiled into automaton states and embedded by a DeepSets+GRU planner; lidar observations are embedded by an MLP. The two embeddings are concatenated to form the 96-d input (`IN`) to a 3-layer actor MLP (`H1`, `H2`, `H3`), which produces the policy mean μ. The post probes and intervenes at every named layer.](figures/00_architecture.png)
 
 The cleanest test of planning is `F blue THEN F green` with *two* candidate blue zones. A planner picks the blue zone that leaves less distance to green. A reactive "closest zone" policy picks whichever blue is closer right now. The paper's Figure 1 shows the former.
 
-I built `PointLtl2-v0.optvar`, a custom environment in which this divergence is enforced at every reset: the closer blue zone is always the *worse* one for total path length.
+I built `PointLtl2-v0.optvar`, a small modification of the paper's Zone env in which this divergence is enforced at every reset: the closer blue zone is always the *worse* one for total path length. The agent and physics are otherwise unchanged from the paper's setup.
 
 ![The `F blue THEN F green` task, schematically. The two blue zones are candidate intermediates: the closer one leaves a longer onward path to green. A planner picks the farther one; a reactive "closest zone" policy picks the nearer one.](figures/01_setup_map.png)
 
@@ -81,6 +82,8 @@ I repeated the optimality test with orientation controlled: at each reset the ag
 
 The CI contains 50%. The spatial imbalance vanishes exactly, because the imbalance was never about left/right — it was about forward. With both forward-motion and closest-zone cues neutralised, the agent's choice is statistically indistinguishable from random.
 
+The behavioural picture is settled: at chance. Two natural follow-up questions are *what* the agent encodes internally and *what* it actually uses. The next two sections take those in turn.
+
 ---
 
 ## 3. Representations: what the agent encodes
@@ -96,24 +99,25 @@ A few things stand out.
 - **Sensors fade.** `agent_speed` is well-encoded at the input (R² ≈ 0.77) and fades to ≈ 0 by the output. The MLP discards raw sensor information as it computes its action.
 - **Policy-aligned features rise.** Whether the agent is about to turn left or right is decodable at 66% accuracy at `IN`, 100% at `OUT`. The 8-class action-direction lift is similarly steep (59% → 96%).
 - **The goal-colour identifier is preserved with near-perfect accuracy through `H3` (≥ 98%), then drops sharply at `OUT` (38%).** The actor carries the goal pointer all the way to the last hidden layer and discards it once the action is committed.
-- **Self-centric *bearing* to the goal zone is at chance (≈ 10% on 8 classes) at every layer.** This is in spite of the agent's eventual *policy angle* being decoded near-perfectly. The agent is not computing its action direction by reading off a clean goal-bearing feature; whatever drives the action direction is computed otherwise — perhaps a obstacle-modulated heading, or a learned mapping that is non-linear in this representation.
-- **Geometry features are not encoded.** Absolute agent position and one-step Δx have negative R² across every layer. The actor does not store a metric map.
+- **Geometry features are not linearly decodable.** Absolute agent position and one-step Δx have negative R² across every layer. The actor does not store a metric map of the environment.
 
 The shape of the gradient — environment-relevant features at the top, action-relevant features at the bottom, no metric map at any depth — is the picture of an *egocentric, reactive controller* whose representations are progressively shaped toward action.
 
+**One row deserves attention on its own.** The 8-class self-centric *bearing to the goal zone* is at chance (≈ 10%) at every layer of the actor. The agent's eventual *policy angle* — the direction it is about to move in — is decodable at 95% by `H3`. The two facts together rule out the simplest mechanistic story for how the agent moves toward a goal: it is *not* the case that the network decodes bearing-to-goal into a clean linear feature and then acts on it. Whatever computation produces the policy direction does not pass through "bearing to goal" as an intermediate; it is either non-linear in this representation, or it is something other than goal-bearing — an obstacle-modulated heading, say, or a learned routine that hits goals as a side-effect of moving in some currently-attractive direction. (We will return to this in §6.)
+
 ### 3.2 The LTL planner's output is a stable state machine
 
-The DeepLTL architecture has a small GRU on top of the deterministic-Büchi automaton's state sequence. At every step the network re-encodes the current LTL plan from scratch and produces a 32-d "LTL embedding". On a 2-step task `F a THEN F b`, this embedding is *constant* during pursuit of `a`, then jumps when the LDBA transitions to pursuing `b`.
+DeepLTL has a small GRU on top of the deterministic-Büchi automaton's state sequence. At every step the network re-encodes the current LTL plan from scratch and produces a 32-d "LTL embedding". On a 2-step task `F a THEN F b`, this embedding is *constant* during pursuit of `a`, then jumps when the LDBA transitions to pursuing `b`.
 
-How predictable is its evolution from the combined embedding `h_t` alone?
+The interesting question isn't how predictable the embedding is during pursuit — it's flat by construction — but whether the rare *jumps* are predictable from the combined embedding `h_t` alone. They are: R² = 0.97 across goal-switch steps, with no additional signal from the action.
 
-![LTL-embedding dynamics. During pursuit, Δltl ≈ 0 — the embedding is locked. At the rare goal-switch step, the jump is highly predictable from `h_t` (R² ≈ 0.97), and adding the action gives no additional signal.](figures/14_gru_dynamics.png)
+![LTL-embedding dynamics. During pursuit, Δltl ≈ 0 by construction — the planner output is locked while the agent chases the current sub-goal. At a goal-switch step, the embedding jumps to a colour-dependent vector that is linearly predictable from `h_t` (R² ≈ 0.97). Action gives no extra information.](figures/14_gru_dynamics.png)
 
-Within a sub-goal pursuit, Δltl is exactly zero, so the linear probe's R² is trivially 1. At the goal switch, Δltl jumps to a specific colour-dependent vector, and a linear function of `h_t` predicts the jump with R² ≈ 0.97 (action gives no extra information). The picture is a near-linear state machine that retargets at switches, very much in line with how the architecture is set up by construction.
+The picture is a near-linear state machine that retargets at switches: knowing the current state of the world is enough to predict the next planner output, even right at the moment it changes.
 
-### 3.3 The chained-distance feature is not actually encoded
+### 3.3 Chained distance is not linearly decodable on held-out layouts
 
-The actor encodes its own goal pointer, lidar readings, and a developing action. Does it also encode the *path-level* feature a planner would need — the chained distance from a candidate intermediate zone to the goal zone?
+The actor's hidden states linearly encode the goal pointer, the agent's lidar readings, and a developing action. Are they also able to express the *path-level* feature a planner would need — the chained distance from a candidate intermediate zone to the goal zone?
 
 A first pass with random train/test splits across states gave a familiar result: self-centric features at R² ≈ 0.55, chained features at R² ≈ 0.22 — present but weak, consistent with weak planning. But that random split has a pitfall. Zone positions are constant within an episode, so any feature defined by the layout (`d_int_to_goal`, `total_via_int`, `optimality_gap`) is constant across all of an episode's states. A random split lets the probe see *some* states from a layout in training and predict *others* from the same layout at test time — recognising the episode rather than computing the feature.
 
@@ -133,7 +137,7 @@ The value function shows the same pattern. Holding the first sub-goal fixed and 
 
 ## 4. Causal: what the agent uses
 
-Linear probes establish presence, not use. The actor-stack analysis showed that the goal colour is decodable at near-perfect accuracy through `H3`. Does that mean the goal is *steerable* by perturbing those activations?
+Linear probes establish presence, not use. §3.1 showed that the goal colour is decodable at near-perfect accuracy through the actor's `H3` layer. Does that mean the goal is *steerable* by perturbing those activations? And what about the goal pointer at the planner-actor boundary?
 
 ### 4.1 Subgoal steering: the goal lives at the planner output, not in the actor MLP
 
@@ -150,46 +154,9 @@ The goal colour is decodable in the actor MLP with perfect accuracy, but adding 
 
 This is a clean example of probes establishing presence, not use.
 
-### 4.2 Project-out and sufficiency on chained distance
+### 4.2 Goal-switch interventions: the agent re-locks from observations
 
-A second causal test, focused not on the goal pointer but on the chained-distance feature explored in §3.3. I ran two activation-level interventions on the combined embedding (96 dims).
-
-**Project-out.** For each probe with direction `w` (unit-normed), at every forward pass replace `h ← h − (w·h) w`. This removes precisely the linear component the probe reads.
-
-**Sufficiency.** Add `α · ŵ` for several values of α and observe behavioural drift.
-
-The two probes I have are:
-
-- `d_agent_to_int` — self-centric, episode-disjoint R² ≈ 0.55. *Positive control.*
-- `d_int_to_goal` — chained-distance, episode-disjoint R² < 0. The probe direction exists but does not track the feature on held-out layouts.
-
-Each condition runs 100 contested `optvar` layouts with identical seeds for a paired comparison.
-
-| Condition | Optimal-choice rate | Task success |
-|---|---|---|
-| Baseline (no intervention) | **53%** | 88% |
-| Ablate chained-distance direction | 42% | 89% |
-| Ablate agent-distance direction *(positive control)* | 44% | 88% |
-
-![Project-out: 1D ablations of either probe direction produce similar mild shifts (~10 percentage points) toward myopic behaviour; task success stays at ~88% across all conditions.](figures/11_causal_ablation.png)
-
-The pattern is more nuanced than I expected. Both ablations produce a similar small shift toward more myopic behaviour (≈ 10 percentage points). Task success is preserved across all conditions. The agent-distance probe was meant to be a positive control where the ablation would clearly degrade behaviour — instead, both ablations look alike. The sufficiency sweep is essentially flat across α ∈ {−3, −1, 0, +1, +3}:
-
-![Sufficiency sweep along the chained-distance direction. Pushing along ŵ_chain barely moves the optimal-choice rate; task success is unchanged.](figures/12_causal_sufficiency.png)
-
-Three things to take away:
-
-1. **The policy is robust to 1D perturbations.** Removing any single probe direction in a 96-dim embedding leaves the bulk of the representation intact. Whatever the policy reads, it does not read it through a single direction.
-
-2. **No direction-specific evidence for chained-distance use.** The chained-distance ablation looks like the agent-distance ablation, and the sufficiency sweep is flat. There is no positive evidence that the chained-distance probe direction is causally important for behaviour. This is consistent with the probing finding (the direction does not even encode the feature on held-out layouts) but does not rule out the feature being computed elsewhere or non-linearly.
-
-3. **A stronger intervention would be informative.** Multi-dimensional subspace projection or larger sufficiency steps could push the network harder; with a 96-dim embedding, removing a single 1D component evidently does not. I leave that for a follow-up.
-
-The methodological caveat is unchanged: high probe R² is not, by itself, evidence that a feature is driving behaviour, and even a clean activation-level intervention requires care in scope.
-
-### 4.3 Goal-switch interventions: the agent re-locks from observations
-
-A separate causal test, focused on what happens at the moment a 2-step task transitions from `F a` to `F b`. If the GRU hidden state at the switch is doing important work — bridging from "pursued a" to "pursue b" — then perturbing the LTL embedding *exactly* at the switch step should hurt success. I ran four conditions on `F a THEN F b` tasks (80 episodes each):
+What happens at the moment a 2-step task transitions from `F a` to `F b`? If the GRU hidden state at the switch is doing important work — bridging from "pursued a" to "pursue b" — then perturbing the LTL embedding *exactly* at the switch step should hurt success. I ran four conditions on `F a THEN F b` tasks (80 episodes each):
 
 | Condition | Task success |
 |---|---|
@@ -200,9 +167,17 @@ A separate causal test, focused on what happens at the moment a 2-step task tran
 
 ![Goal-switch interventions on `F a THEN F b` tasks. Replacing the LTL embedding with zeros at the switch step (or for three steps) only mildly degrades task success.](figures/18_goal_switch.png)
 
-Task success is preserved across all conditions. Even three consecutive steps of zeroed-out LTL embedding only drops success by 6 percentage points. The agent re-locks on the new sub-goal from observations and the planner's *next* timestep output — the embedding at the precise switch step is not load-bearing.
+Task success is preserved across all conditions. Even three consecutive steps of zeroed-out LTL embedding only drops success by 6 percentage points. The agent re-locks on the new sub-goal from observations and the planner's *next* timestep output — the embedding at the precise switch step is not load-bearing. There is no "memory" between steps that has to be intact at the switch; the planner's output one step later, combined with current observations, is enough.
 
-This complements the steering result: the planner output is the actionable goal pointer, but a one-step interruption of that pointer is recoverable from the next step's planner output plus current observations. There is no "memory" stored between steps that has to be intact at the switch.
+This complements §4.1: the planner's output is the actionable goal pointer, and even a brief interruption of it is recoverable.
+
+### 4.3 A 1D activation ablation that didn't work
+
+A separate test, narrower in target. I trained probes on the combined embedding for two features — `d_agent_to_int` (self-centric, episode-disjoint R² ≈ 0.55) and `d_int_to_goal` (chained, episode-disjoint R² < 0) — and tried project-out and sufficiency interventions along each probe direction.
+
+The result was inconclusive. 1D ablation of *either* direction produced a similar ~10pp shift toward myopic behaviour with task success preserved at ~88%. The sufficiency sweep along the chained-distance direction was essentially flat. With a 96-dim embedding, removing a single 1D component is too weak a perturbation to test direction-specific use — the policy is locally robust to single-direction ablations regardless of which one. Multi-dimensional subspace projection would be the natural follow-up; the §4.1 steering result is the cleaner test of the same general question.
+
+![Project-out: 1D ablations of either probe direction produce similar mild shifts (~10 percentage points) toward myopic behaviour; task success stays at ~88% across all conditions. The methodology is too coarse to be informative on this question.](figures/11_causal_ablation.png)
 
 ---
 
@@ -227,9 +202,9 @@ I ran the corresponding sweep:
 
 The pure two-step run at γ = 0.95 collapses. Of the curriculum/discount variants, only `opt_d099_mixed` reaches task success close to baseline (85% vs. paper's 91 – 95%), and its optimality rate is 52%, p = 0.76.
 
-The most informative observation in the sweep is the auxiliary-loss column. Chained-distance probe R² (random-split, used here for comparability with earlier analyses; the corresponding episode-disjoint R² is below zero throughout) rises from 0.31 to 0.41 — a real increase in probe-decodable content. Optimal-choice rate stays at ~50%. The policy has acquired more of the information that planning would require, and does not use it.
+The most informative observation is the auxiliary-loss column. The chained-distance probe R² (random-split, used here for comparability with earlier analyses; the corresponding episode-disjoint R² is below zero throughout) rises from 0.31 to 0.41 — a real increase in probe-decodable content. Behavioural optimality across all variants in the table sits at ~50%. The network has acquired more of the information that planning would require, and the policy does not use it.
 
-Together with the project-out result, this gives the same answer from two directions: training the network to make the chained-distance feature more readable does not change behaviour, and removing the readable component from activations does not change behaviour either. Representation and policy have separated.
+This pairs with the steering result in §4.1: whether the chained-distance feature is *added* by training or the goal pointer is *removed* from the actor MLP, behaviour does not follow the representation. Representation and policy have separated.
 
 ---
 
@@ -244,19 +219,21 @@ The behaviour I observe is consistent with a small stack of reactive rules, appl
 
 This stack accounts for 95% success on a benchmark that scores completion, and it accounts for chance-level sub-goal selection on a benchmark that scores planning specifically. The two are not contradictory — completion is robust to bad first commitments, given enough lidar and continuous control to recover.
 
-The agent's behaviour, viewed colour-by-colour, is well-summarised by a 4×4 stochastic matrix `P(reach next | reached current)`. I estimated this matrix from 12 episodes per pair on `F a THEN F b` tasks, then used it to predict success on length-2 and length-3 chains.
+The actor-stack analysis (§3.1) rules out a tidier alternative. If the agent acted by computing a self-centric "bearing to goal" and rotating to face it, that bearing should be linearly decodable somewhere in the actor — and it isn't, at any layer. What *is* linearly decodable is the goal-colour identifier and the network's own about-to-act direction. The most parsimonious reading is that the network learned a "this colour is currently attractive" → "rotate-and-go" routine that is largely independent of explicit relative-direction reasoning.
 
-![Behavioural macro world model. Left: pair-success matrix `P(reach next | reached current)`. Right: a Markov-chain prediction (just multiplying matrix entries) gets within 0.03 of empirical multi-step success on depth 1, 2, 3.](figures/15_macro_world_model.png)
+One implication of the heuristic account is that the agent's behaviour should be summarisable at the colour level by a Markov chain `P(reach next | reached current)` — without reference to anything inside the network. I estimated this 4×4 matrix from 12 episodes per pair on `F a THEN F b` tasks, then used it to predict success on length-2 and length-3 chains.
 
-The prediction matches the empirical multi-step success within MAE ≈ 0.02 – 0.03. The agent's behaviour can be summarised at the colour level by an external Markov chain — a *behavioural* world model. Critically, this does not imply that the agent has internalised this matrix as a mental model. The fit just says the macro structure is recoverable from rollouts. Combined with the absence of a metric map in the activations (§3.1), the natural reading is: the network executes a near-Markov colour policy, and any "world model" lives in the analyst's notebook, not in the network.
+![Behavioural macro world model. Left: the pair-success matrix `P(reach next | reached current)`. Right: a Markov-chain prediction (multiplying matrix entries) is within MAE ≈ 0.03 of empirical multi-step success at depth 1, 2, 3.](figures/15_macro_world_model.png)
+
+The prediction matches empirical multi-step success within MAE ≈ 0.02 – 0.03. Most matrix cells sit at 1.00 — the agent reliably succeeds on most pairs — so the test is a relatively easy one: a constant 1 would also predict reasonably. The cells that aren't saturated (`green→blue` and `green→magenta` at 0.92, `yellow→blue` at 0.92) are where the prediction has to work, and the depth-3 prediction (0.96 vs. empirical 0.93) is where it would most plausibly fail; it doesn't.
+
+The point isn't that the agent has internalised this matrix — it almost certainly hasn't. The point is that the agent's macro structure is *recoverable from rollouts alone*. Combined with the absence of a linearly decodable metric map in the activations (§3.1), the natural reading is that the network executes a near-Markov colour policy, and any "world model" lives in the analyst's notebook, not in the network.
 
 ---
 
 ## 7. Scope
 
-The paper's task-success numbers reproduce. As an additional sanity check, the agent's success rate on single-colour tasks (`F c` for c ∈ {blue, green, yellow, magenta}) averages 98% versus 0% for a uniform-random policy on the same layouts, giving a [Maximum Entropy Goal-directedness](https://arxiv.org/abs/2310.07229) score of GD ≈ 3.2 averaged across goals. Whatever the agent is doing internally, it is reliably goal-conditioned at the behavioural level.
-
-The narrower claim this post pushes back on is the mechanistic one: that sub-goal selection is driven by reasoning about onward paths. Mathias concurs that the optimality rate is approximately 50%; remaining disagreement, if any, concerns how surprising this should be considered.
+The paper's task-success numbers reproduce. The agent is reliably goal-conditioned at the behavioural level: across single-colour tasks `F c`, success is 98% trained vs. 0% under a uniform-random policy on the same layouts ([Maximum Entropy Goal-directedness](https://arxiv.org/abs/2310.07229) ≈ 3.2 averaged across colours). The post is not arguing against goal-conditioning as such — it is arguing against the *mechanistic* claim that sub-goal selection is driven by reasoning over onward paths. Mathias concurs that the optimality rate is approximately 50%; remaining disagreement, if any, concerns how surprising this should be considered.
 
 A few caveats:
 
@@ -264,6 +241,7 @@ A few caveats:
 - Sample sizes are moderate (N = 80 – 100 per behavioural cell). Borderline results would benefit from larger N.
 - The behavioural evidence concerns one task family, `F A THEN F B` and its safety/equidistant variants. Tasks with richer temporal structure may interact with a heuristic policy differently.
 - Confounds have recurred. "Spatial bias" turned out to be orientation bias; "weak chained-distance encoding" turned out to be within-episode leak. There may be further confounds I have not yet identified.
+- The paper's Figure 1 displays a single configuration in which the agent does pick the optimal blue zone. Across 100 randomly varied configurations of the same task family, the agent picks optimally about half the time. The post's quantitative claim is the average; it does not contest that the figure depicts a real successful trajectory.
 
 The broader point worth stating plainly: high task success is not, by itself, evidence of planning, even on tasks that would in principle require it. A sufficiently rich reactive policy, combined with continuous control, lidar-based avoidance, and a benchmark that scores completion rather than optimality, can reach 95% success without instantiating anything that resembles a world model.
 
@@ -275,4 +253,14 @@ The broader point worth stating plainly: high task success is not, by itself, ev
 - Jackermeier & Abate, [*DeepLTL*](https://openreview.net/forum?id=9pW2J49flQ), ICLR 2025.
 - Richens et al., [*General Agents Need World Models*](https://arxiv.org/abs/2506.01622), 2025.
 
-To reproduce the central finding: load `fresh_baseline`, run `interpretability/behavioural/controlled_orientation_test.py` for N = 100 episodes of `F blue THEN F green` on `PointLtl2-v0.opteq`. Expected: 50% ± a few percent, with a CI that comfortably contains chance. A substantial deviation from that figure would be informative.
+Each result in the post is produced by a single script in the repo. The most direct reproductions:
+
+- **§2 (behaviour at chance):** `interpretability/behavioural/controlled_orientation_test.py` — load `fresh_baseline`, N = 100 on `PointLtl2-v0.opteq`. Expected: ~50% optimal, CI containing chance.
+- **§3.1 (actor-stack flow):** `interpretability/probing/actor_stack.py`. Outputs `13_actor_stack.png`.
+- **§3.2 (LTL dynamics):** `interpretability/probing/gru_dynamics.py`.
+- **§3.3 (honest-split probing):** `interpretability/probing/honest_split_comparison.py`.
+- **§4.1 (subgoal steering):** `interpretability/causal/subgoal_steering.py`.
+- **§4.2 (goal-switch interventions):** `interpretability/causal/goal_switch_intervene.py`.
+- **§6 (macro world model):** `interpretability/behavioural/macro_world_model.py`.
+
+A substantial deviation from any of the headline numbers would be informative.

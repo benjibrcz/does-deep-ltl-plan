@@ -358,10 +358,8 @@ TARGET_ORDER = [
     "agent_speed",
     "goal_colour_id",
     "bearing_to_goal_cls8",
-    "dist_to_goal",
     "policy_turn_sign",
     "policy_angle_cls8",
-    "policy_mu_norm",
     "agent_x",
     "delta_x",
 ]
@@ -370,10 +368,8 @@ PRETTY = {
     "agent_speed":          "agent speed (sensor)",
     "goal_colour_id":       "goal colour id (task)",
     "bearing_to_goal_cls8": "bearing to goal cls8 (task)",
-    "dist_to_goal":         "distance to goal (task)",
     "policy_turn_sign":     "policy turn sign (action)",
     "policy_angle_cls8":    "policy angle cls8 (action)",
-    "policy_mu_norm":       "‖μ‖ (action)",
     "agent_x":              "agent x position (geometry, neg. control)",
     "delta_x":              "Δx step (geometry, neg. control)",
 }
