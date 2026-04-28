@@ -103,34 +103,32 @@ def main():
 
     bars1 = ax.bar(x - width / 2, rand_vals, width,
                    color=GREY, edgecolor="black", linewidth=0.5,
-                   label="Random split (within-episode leak)")
+                   label="Random split")
     bars2 = ax.bar(x + width / 2, ep_vals, width,
                    color=BLUE, edgecolor="black", linewidth=0.5,
-                   label="Episode-disjoint split (honest)")
+                   label="Episode-disjoint")
 
     for b, v in zip(bars1, rand_vals):
-        ax.text(b.get_x() + b.get_width() / 2, v + 0.015 if v >= 0 else v - 0.04,
+        ax.text(b.get_x() + b.get_width() / 2, v + 0.02 if v >= 0 else v - 0.05,
                 f"{v:.2f}", ha="center", fontsize=9, color="#444")
     for b, v in zip(bars2, ep_vals):
-        ax.text(b.get_x() + b.get_width() / 2, v + 0.015 if v >= 0 else v - 0.04,
+        ax.text(b.get_x() + b.get_width() / 2, v + 0.02 if v >= 0 else v - 0.05,
                 f"{v:.2f}", ha="center", fontsize=9, color="black", fontweight="bold")
 
     ax.axhline(0, color="black", linewidth=0.5)
-    ax.axvspan(-0.5, len(OBSERVABLE) - 0.5, color=GREEN, alpha=0.05)
-    ax.axvspan(len(OBSERVABLE) - 0.5, n - 0.5, color=RED, alpha=0.05)
-
-    ax.text(len(OBSERVABLE) / 2 - 0.5, ax.get_ylim()[1] * 0.95 if ax.get_ylim()[1] > 0 else 0.5,
-            "Self-centric (observable)", ha="center", fontsize=10, color="#2e7d32",
-            fontweight="bold")
-    ax.text((len(OBSERVABLE) + n) / 2 - 0.5, ax.get_ylim()[1] * 0.95 if ax.get_ylim()[1] > 0 else 0.5,
-            "Planning-relevant", ha="center", fontsize=10, color="#c62828",
-            fontweight="bold")
+    ax.axvline(len(OBSERVABLE) - 0.5, color="#888", linewidth=0.7, linestyle=":")
 
     ax.set_xticks(x)
     ax.set_xticklabels(pretty_labels, rotation=20, ha="right")
-    ax.set_ylabel(r"Probe R$^2$ on `combined_embedding`")
-    ax.set_title("Random splits inflate probe R² for chained distances\n"
-                 "Under episode-disjoint evaluation, chained features are below the mean-only baseline")
+    ax.set_ylabel(r"Probe R$^2$ on combined embedding")
+    ax.set_ylim(-0.95, 0.85)
+    # Group labels above the bars, in the headroom we just reserved
+    ax.text(len(OBSERVABLE) / 2 - 0.5, 0.78,
+            "Self-centric features", ha="center", fontsize=10, color="#2e7d32")
+    ax.text((len(OBSERVABLE) + n) / 2 - 0.5, 0.78,
+            "Planning-relevant features", ha="center", fontsize=10, color="#c62828")
+
+    ax.set_title("Honest probing splits change the picture for chained features", pad=8)
     ax.legend(frameon=False, loc="lower left")
 
     fig.tight_layout()
