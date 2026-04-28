@@ -27,6 +27,12 @@ python interpretability/behavioural/controlled_orientation_test.py --model fresh
 
 # Linear probes
 python interpretability/probing/probe_planning.py --exp fresh_baseline
+
+# Causal mediation: does ablating / adding the chained-distance probe
+# direction shift the agent's behaviour?
+python interpretability/causal/project_out.py --exp fresh_baseline \
+    --collect_episodes 80 --behaviour_episodes 100 --alphas=-3,-1,1,3
+python interpretability/causal/plot_results.py
 ```
 
 The trained `fresh_baseline` checkpoint is shipped under `experiments/ppo/PointLtl2-v0/fresh_baseline/`.

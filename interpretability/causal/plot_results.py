@@ -82,8 +82,8 @@ def plot_ablation(results: dict, out_path: Path):
     ax.set_ylabel("Task success rate")
     ax.set_title("Task completion")
 
-    fig.suptitle("Causal mediation: ablating the chained-distance direction does not\n"
-                 "shift behaviour; ablating the agent-distance direction does",
+    fig.suptitle("Project-out interventions: 1D ablations of either probe direction\n"
+                 "produce similar mild shifts; task success is preserved",
                  y=1.02, fontsize=12)
     fig.tight_layout()
     fig.savefig(out_path, dpi=150, bbox_inches="tight")

@@ -22,9 +22,9 @@ experiments/ppo/PointLtl2-v0/*
 !experiments/ppo/PointLtl2-v0/fresh_baseline
 experiments/ppo/PointLtl2-v0/fresh_baseline/*/eval
 
-# Ignore noisy interpretability outputs by default — re-include curated results
-interpretability/results/*.npz
-interpretability/results/*.npy
+# Large intermediate data — regenerable by running the scripts
+interpretability/results/**/*.npz
+interpretability/results/**/*.npy
 interpretability/results/raw/
 
 rabinizer4

@@ -1,0 +1,73 @@
+{
+  "exp": "fresh_baseline",
+  "args": {
+    "exp": "fresh_baseline",
+    "collect_episodes": 80,
+    "collect_max_steps": 120,
+    "behaviour_episodes": 100,
+    "seed": 42,
+    "alphas": "-3,-1,1,3",
+    "out_dir": null
+  },
+  "probes": {
+    "d_chain": {
+      "r2": -0.4908843306297963,
+      "w_norm": 0.15709158778190613
+    },
+    "d_agent": {
+      "r2": 0.5475493215625451,
+      "w_norm": 1.1268138885498047
+    }
+  },
+  "summaries": {
+    "baseline": {
+      "n_total": 100,
+      "n_contested": 99,
+      "optimal_rate": 0.5252525252525253,
+      "myopic_rate": 0.47474747474747475,
+      "success_rate_overall": 0.88
+    },
+    "ablate_chain": {
+      "n_total": 100,
+      "n_contested": 100,
+      "optimal_rate": 0.42,
+      "myopic_rate": 0.58,
+      "success_rate_overall": 0.89
+    },
+    "ablate_agent": {
+      "n_total": 100,
+      "n_contested": 100,
+      "optimal_rate": 0.44,
+      "myopic_rate": 0.56,
+      "success_rate_overall": 0.88
+    },
+    "add_chain_a-3": {
+      "n_total": 100,
+      "n_contested": 100,
+      "optimal_rate": 0.53,
+      "myopic_rate": 0.47,
+      "success_rate_overall": 0.87
+    },
+    "add_chain_a-1": {
+      "n_total": 100,
+      "n_contested": 100,
+      "optimal_rate": 0.53,
+      "myopic_rate": 0.47,
+      "success_rate_overall": 0.87
+    },
+    "add_chain_a+1": {
+      "n_total": 100,
+      "n_contested": 100,
+      "optimal_rate": 0.48,
+      "myopic_rate": 0.52,
+      "success_rate_overall": 0.86
+    },
+    "add_chain_a+3": {
+      "n_total": 100,
+      "n_contested": 100,
+      "optimal_rate": 0.48,
+      "myopic_rate": 0.52,
+      "success_rate_overall": 0.84
+    }
+  }
+}
